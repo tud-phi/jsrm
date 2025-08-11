@@ -43,13 +43,21 @@ params["D"] = 5e-4 * jnp.diag(
     ) * params["l"][:, None]).flatten()
 )
 
+# specify the rest strain
+xi_eq = jnp.zeros((3 * num_segments,))
+# by default, set the axial rest strain (local y-axis) along the entire rod to 1.0
+rest_strain_reshaped = xi_eq.reshape((-1, 3))
+rest_strain_reshaped = rest_strain_reshaped.at[:, -1].set(1.0)
+xi_eq = rest_strain_reshaped.flatten()
+print("xi_eq:\n", xi_eq)
+
 # activate all strains (i.e. bending, shear, and axial)
 # strain_selector = jnp.ones((3 * num_segments,), dtype=bool)
 strain_selector = jnp.array([True, False, True])[None, :].repeat(num_segments, axis=0).flatten()
 
 B_xi, forward_kinematics_fn, dynamical_matrices_fn, auxiliary_fns = (
     pneumatically_actuated_planar_pcs.factory(
-        num_segments, sym_exp_filepath, strain_selector, # simplified_actuation_mapping=True
+        num_segments, sym_exp_filepath, strain_selector=strain_selector, xi_eq=xi_eq, # simplified_actuation_mapping=True
     )
 )
 # jit the functions
@@ -59,19 +67,19 @@ actuation_mapping_fn = partial(
     forward_kinematics_fn,
     auxiliary_fns["jacobian_fn"],
 )
-print("A=", actuation_mapping_fn(params, B_xi, jnp.zeros((2 * num_segments,))))
+print("A=", actuation_mapping_fn(params, B_xi, xi_eq, jnp.zeros((2 * num_segments,))))
 
 
 def sweep_actuation_mapping():
     # evaluate the actuation matrix for a straight backbone
     q = jnp.zeros((2 * num_segments,))
-    A = actuation_mapping_fn(params, B_xi, q)
+    A = actuation_mapping_fn(params, B_xi, xi_eq, q)
     print("Evaluating actuation matrix for straight backbone: A =\n", A)
 
     kappa_be_pts = jnp.linspace(-3*jnp.pi, 3*jnp.pi, 500)
     sigma_ax_pts = jnp.zeros_like(kappa_be_pts)
     q_pts = jnp.stack([kappa_be_pts, sigma_ax_pts], axis=-1)
-    A_pts = vmap(actuation_mapping_fn, in_axes=(None, None, 0))(params, B_xi, q_pts)
+    A_pts = vmap(actuation_mapping_fn, in_axes=(None, None, None, 0))(params, B_xi, xi_eq, q_pts)
     # mark the points that are not controllable as the u1 and u2 terms share the same sign
     non_controllable_selector = A_pts[..., 0, 0] * A_pts[..., 0, 1] >= 0.0
     non_controllable_indices = jnp.where(non_controllable_selector)[0]
@@ -100,7 +108,7 @@ def sweep_actuation_mapping():
         _params = params.copy()
         _params["r"] = r * jnp.ones((num_segments,))
         _params["r_cham_out"] = r_cham_out * jnp.ones((num_segments,))
-        A_pts = vmap(actuation_mapping_fn, in_axes=(None, None, 0))(_params, B_xi, q_pts)
+        A_pts = vmap(actuation_mapping_fn, in_axes=(None, None, None, 0))(_params, B_xi, xi_eq, q_pts)
         ax.plot(kappa_be_pts, A_pts[:, 0, 0], label=r"$R = " + str(r) + "$")
     ax.set_xlabel(r"$\kappa_\mathrm{be}$ [rad/m]")
     ax.set_ylabel(r"$\frac{\partial \tau_\mathrm{be}}{\partial u_1}$")
@@ -117,7 +125,7 @@ def sweep_actuation_mapping():
     q_pts = jnp.stack([kappa_be_grid.flatten(), sigma_ax_grid.flatten()], axis=-1)
 
     # evaluate the actuation mapping on the grid
-    A_pts = vmap(actuation_mapping_fn, in_axes=(None, None, 0))(params, B_xi, q_pts)
+    A_pts = vmap(actuation_mapping_fn, in_axes=(None, None, None, 0))(params, B_xi, xi_eq, q_pts)
     # reshape A_pts to match the grid shape
     A_grid = A_pts.reshape(kappa_be_grid.shape[:2] + A_pts.shape[-2:])
 
