@@ -137,8 +137,7 @@ def factory(
             chi_pe=chi_sms[:-1], chi_de=chi_sms[1:],
             J_pe=J_sms[:-1], J_de=J_sms[1:],
         )
-        # we need to sum the contributions of the actuation of each segment
-        A = jnp.sum(A_sms, axis=0)
+        A = jnp.concatenate(A_sms, axis=-1)
 
         # apply the actuation_basis
         A = A @ actuation_basis
