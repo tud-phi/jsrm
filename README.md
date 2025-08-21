@@ -1,4 +1,4 @@
-# JAX Soft Robot Modelling
+# JAX Soft Robot Modeling
 
 This repository contains symbolic derivations of the kinematics and dynamics of various soft robots using Sympy.
 The symbolic expressions are then implemented in JAX and can be used for fast, parallelizable, and differentiable simulations.
