@@ -45,7 +45,7 @@ def test_planar_cc():
     shear_indices = [3 * i + 1 for i in range(num_segments)]
     axial_indices = [3 * i + 2 for i in range(num_segments)]
 
-    substitutions = {"th0": 0}
+    substitutions = {sym_exps["params_syms"]["th0"]: 0}
     for idx in shear_indices:
         substitutions[xi_syms[idx]] = 0
         substitutions[xi_d_syms[idx]] = 0
