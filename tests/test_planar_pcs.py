@@ -54,6 +54,7 @@ def test_planar_cc():
         substitutions[xi_d_syms[idx]] = 1
 
     forbidden_syms = set(substitutions.keys())
+    bending_syms = [xi_syms[3 * i] for i in range(num_segments)]
 
     def remove_rows_cols(mat: sp.Matrix, remove_idxs):
         mat_mutable = sp.Matrix(mat)
@@ -106,6 +107,39 @@ def test_planar_cc():
             simplified_exps[exp_key] = simplified_item
             print(f"{exp_key} =\n{simplified_item}")
             assert forbidden_syms.isdisjoint(simplified_item.free_symbols)
+
+    def limit_bending_strain(expr: sp.Expr) -> sp.Expr:
+        limited_expr = expr
+        for bending_sym in bending_syms:
+            limited_expr = sp.limit(limited_expr, bending_sym, 0)
+        return sp.simplify(limited_expr)
+
+    def assert_no_bending_syms(expr: sp.Expr):
+        assert set(bending_syms).isdisjoint(getattr(expr, "free_symbols", set()))
+
+    limited_exps = {}
+    for exp_key, exp_val in simplified_exps.items():
+        if isinstance(exp_val, list):
+            limited_list = []
+            for idx, exp_item in enumerate(exp_val):
+                limited_item = (
+                    exp_item.applyfunc(limit_bending_strain)
+                    if isinstance(exp_item, sp.MatrixBase)
+                    else limit_bending_strain(exp_item)
+                )
+                limited_list.append(limited_item)
+                print(f"{exp_key}_limit[{idx}] =\n{limited_item}")
+                assert_no_bending_syms(limited_item)
+            limited_exps[exp_key] = limited_list
+        else:
+            limited_item = (
+                exp_val.applyfunc(limit_bending_strain)
+                if isinstance(exp_val, sp.MatrixBase)
+                else limit_bending_strain(exp_val)
+            )
+            limited_exps[exp_key] = limited_item
+            print(f"{exp_key}_limit =\n{limited_item}")
+            assert_no_bending_syms(limited_item)
 
 def test_planar_cs():
     sym_exp_filepath = (
