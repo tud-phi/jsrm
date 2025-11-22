@@ -1,3 +1,4 @@
+import dill
 import jax
 
 jax.config.update("jax_enable_x64", True)  # double precision
@@ -7,6 +8,7 @@ import jsrm
 from functools import partial
 from numpy.testing import assert_allclose
 from pathlib import Path
+import sympy as sp
 
 from jsrm.systems import planar_pcs, euler_lagrangian
 from jsrm.utils.tolerance import Tolerance
@@ -29,6 +31,78 @@ def constant_strain_inverse_kinematics_fn(params, xi_eq, chi, s) -> Array:
     ])
     q = xi - xi_eq
     return q
+
+def test_planar_cc():
+    sym_exp_filepath = (
+        Path(jsrm.__file__).parent / "symbolic_expressions" / "planar_pcs_ns-1.dill"
+    )
+    sym_exps = dill.load(open(str(sym_exp_filepath), "rb"))
+
+    xi_syms = sym_exps["state_syms"]["xi"]
+    xi_d_syms = sym_exps["state_syms"]["xi_d"]
+
+    num_segments = len(xi_syms) // 3
+    shear_indices = [3 * i + 1 for i in range(num_segments)]
+    axial_indices = [3 * i + 2 for i in range(num_segments)]
+
+    substitutions = {}
+    for idx in shear_indices + axial_indices:
+        substitutions[xi_syms[idx]] = 0
+        substitutions[xi_d_syms[idx]] = 0
+
+    forbidden_syms = set(substitutions.keys())
+
+    def remove_rows_cols(mat: sp.Matrix, remove_idxs):
+        mat_mutable = sp.Matrix(mat)
+        keep_rows = [i for i in range(mat_mutable.rows) if i not in remove_idxs]
+        keep_cols = [i for i in range(mat_mutable.cols) if i not in remove_idxs]
+        return mat_mutable.extract(keep_rows, keep_cols)
+
+    def remove_cols(mat: sp.Matrix, remove_idxs):
+        mat_mutable = sp.Matrix(mat)
+        keep_cols = [i for i in range(mat_mutable.cols) if i not in remove_idxs]
+        keep_rows = list(range(mat_mutable.rows))
+        return mat_mutable.extract(keep_rows, keep_cols)
+
+    def remove_rows(mat: sp.Matrix, remove_idxs):
+        mat_mutable = sp.Matrix(mat)
+        keep_rows = [i for i in range(mat_mutable.rows) if i not in remove_idxs]
+        return mat_mutable.extract(keep_rows, [0])
+
+    simplified_exps = {}
+    expected_dim = len(xi_syms) - len(shear_indices) - len(axial_indices)
+    expected_j_cols = len(xi_syms) // 3  # one bending DOF per segment
+
+    for exp_key, exp_val in sym_exps["exps"].items():
+        def simplify_and_reduce(expr: sp.Expr) -> sp.Expr:
+            simplified_expr = sp.simplify(expr.subs(substitutions))
+            if exp_key in {"B", "C"}:
+                simplified_expr = remove_rows_cols(simplified_expr, shear_indices + axial_indices)
+                assert simplified_expr.shape == (expected_dim, expected_dim)
+            elif exp_key == "G":
+                simplified_expr = remove_rows(simplified_expr, shear_indices + axial_indices)
+                assert simplified_expr.shape == (expected_dim, 1)
+            elif exp_key in {"J_sms", "J_d_sms", "Jee", "Jee_d"}:
+                simplified_expr = remove_cols(simplified_expr, shear_indices + axial_indices)
+                assert simplified_expr.shape == (simplified_expr.rows, expected_j_cols)
+            elif exp_key == "J_tend_sms":
+                simplified_expr = remove_cols(simplified_expr, shear_indices + axial_indices)
+                assert simplified_expr.shape == (simplified_expr.rows, expected_j_cols)
+            return simplified_expr
+
+        if isinstance(exp_val, list):
+            simplified_list = []
+            for idx, exp_item in enumerate(exp_val):
+                simplified_item = simplify_and_reduce(exp_item)
+                simplified_list.append(simplified_item)
+                print(f"{exp_key}[{idx}] =\n{simplified_item}")
+                assert forbidden_syms.isdisjoint(simplified_item.free_symbols)
+            simplified_exps[exp_key] = simplified_list
+        else:
+            simplified_item = simplify_and_reduce(exp_val)
+            simplified_exps[exp_key] = simplified_item
+            print(f"{exp_key} =\n{simplified_item}")
+            assert forbidden_syms.isdisjoint(simplified_item.free_symbols)
 
 def test_planar_cs():
     sym_exp_filepath = (
@@ -124,4 +198,5 @@ def test_planar_cs():
 
 
 if __name__ == "__main__":
+    test_planar_cc()
     test_planar_cs()
