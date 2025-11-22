@@ -45,10 +45,13 @@ def test_planar_cc():
     shear_indices = [3 * i + 1 for i in range(num_segments)]
     axial_indices = [3 * i + 2 for i in range(num_segments)]
 
-    substitutions = {}
-    for idx in shear_indices + axial_indices:
+    substitutions = {"th0": 0}
+    for idx in shear_indices:
         substitutions[xi_syms[idx]] = 0
         substitutions[xi_d_syms[idx]] = 0
+    for idx in axial_indices:
+        substitutions[xi_syms[idx]] = 1
+        substitutions[xi_d_syms[idx]] = 1
 
     forbidden_syms = set(substitutions.keys())
 
@@ -199,4 +202,5 @@ def test_planar_cs():
 
 if __name__ == "__main__":
     test_planar_cc()
+    exit()
     test_planar_cs()
