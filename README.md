@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > **This project is archived and is no longer under active development.**
-> [SoRoMoX (Soft Robot Models in jaX)](https://github.com/tud-phi/soromox) is the successor to `jsrm`.
+> [SoRoMoX (Soft Robot Models in jaX)](https://github.com/phi-lab-research/soromox) is the successor to `jsrm`.
 > Most features provided by `jsrm` are also available in SoRoMoX through a slightly modified interface.
 >
 > SoRoMoX replaces the symbolic derivation pipeline with scalable, fully numerical JAX implementations and adds
@@ -85,10 +85,10 @@ python examples/simulate_pendulum.py
 ## See also
 
 You might also be interested in the following repositories:
- - The [`jax-spcs-kinematics`](https://github.com/tud-phi/jax-spcs-kinematics) repository contains an implementation
+ - The [`jax-spcs-kinematics`](https://github.com/phi-lab-research/jax-spcs-kinematics) repository contains an implementation
  of the Selective Piecewise Constant Strain (SPCS) kinematics in JAX. We have shown in our paper that this kinematic 
 model is suitable for representing the shape of HSA rods.
- - The [`HSA-PyElastica`](https://github.com/tud-phi/HSA-PyElastica) repository contains a plugin for PyElastica
+ - The [`HSA-PyElastica`](https://github.com/phi-lab-research/HSA-PyElastica) repository contains a plugin for PyElastica
 for the simulation of HSA robots.
- - The [`hsa-planar-control`](https://github.com/tud-phi/hsa-planar-control) repository contains JAX and ROS2 implementations
+ - The [`hsa-planar-control`](https://github.com/phi-lab-research/hsa-planar-control) repository contains JAX and ROS2 implementations
  of model-based control algorithms for planar HSA robots.
